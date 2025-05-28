@@ -7,7 +7,6 @@ log-decode*
 *.model
 *.vocab
 *.arrow
-*.json
 *.bin
 *.pth
 *.safetensors
