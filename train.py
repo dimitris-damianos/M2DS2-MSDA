@@ -18,9 +18,6 @@ warnings.filterwarnings("ignore")
 
 disable_caching()
 
-DATAFAST_LOCATION = '/nfs1/ddamianos/datafast'
-MSDA_SAVE_PATH = '/nfs1/ddamianos/msda'
-
 def make_dataset(args):
     ### only ctc loss
     def source_domain(batch):
@@ -33,18 +30,13 @@ def make_dataset(args):
     
             
     train_dataset = Dataset.load_from_disk(f"{args.train_dir}")
-    test_dataset = Dataset.load_from_disk(f"{args.test_dir}")
-    dev_dataset = Dataset.load_from_disk(f"{args.valid_dir}")
-
     train_dataset = train_dataset.map(source_domain)
-    test_dataset = test_dataset.map(eval_domain)
-    dev_dataset = dev_dataset.map(eval_domain)
     
     
     print(f"LOG: Training on {args.dataset_name} source domain.")
     print(f'LOG: Dataset contains {len(train_dataset)} datapoints.')
 
-    return train_dataset, test_dataset, dev_dataset
+    return train_dataset
 
 
 def make_model(processor, args):
@@ -58,8 +50,8 @@ def make_model(processor, args):
 
 def make_training_args(args):
     training_args = TrainingArguments(
-        logging_dir=f"{MSDA_SAVE_PATH}/train-log/{args.dataset_name}",
-        output_dir=f"{MSDA_SAVE_PATH}/train-checkpoints/{args.dataset_name}",        ## save teachers 
+        logging_dir=f"./train-log/{args.dataset_name}",
+        output_dir=f"{args.save_dir}/train-checkpoints/{args.dataset_name}",        ## save teachers 
         group_by_length=True,
         per_device_train_batch_size=args.batch_size,
         disable_tqdm=args.disable_tqdm,
@@ -94,19 +86,14 @@ def parse_args():
         help='Path to the train dataset directory.'
     )
     parser.add_argument(
-        '--test-dir',
-        type=str,
-        help='Path to the test dataset directory.'
-    )
-    parser.add_argument(
-        '--valid-dir',
-        type=str,
-        help='Path to the validation dataset directory.'
-    )
-    parser.add_argument(
         '--dataset-name',
         type=str,
         help='Name of dataset for local checkpoints.'
+    )
+    parser.add_argument(
+        '--save-dir',
+        type=str,
+        help='Path to save the model checkpoints.'
     )
     return parser.parse_args()
 
@@ -187,9 +174,7 @@ def main():
 
     compute_metrics = make_metrics_calculator(wer_metric, processor)
 
-    train_dataset, test_dataset, dev_dataset = make_dataset(
-        args
-    )
+    train_dataset = make_dataset(args)
 
     # print(train_dataset[0].keys())
     model = make_model(processor, args)
@@ -204,21 +189,10 @@ def main():
         args=training_args,
         compute_metrics=compute_metrics,
         train_dataset=train_dataset,
-        eval_dataset=dev_dataset,
         tokenizer=processor.tokenizer,
     )
     print("LOG: Training started")
     train_results = trainer.train(resume_from_checkpoint=args.resume is not None)
-    train_metrics = train_results.metrics
-
-    trainer.log_metrics("train",train_metrics)
-    trainer.save_metrics("train",train_metrics)
-
-    metrics = trainer.evaluate(eval_dataset=test_dataset)
-    trainer.log_metrics("eval",metrics)
-    trainer.save_metrics("eval",metrics)
-
-    print(f"Test metrics {metrics}")
 
 
 if __name__ == "__main__":

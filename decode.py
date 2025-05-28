@@ -188,6 +188,7 @@ class DataCollatorWithPadding:
         )
 
         batch["labels"] = labels
+
         batch["utt_id"] = [
             f["utt_id"] if 'utt_id' in f.keys() else f['client_id'] for f in features
             ]
@@ -281,23 +282,15 @@ def evaluation_loop(model, dataloader, args):
     all_speaker_ids = []
     all_hidden_states = []
     with torch.no_grad():
-        print("Evaluating")
+        print("LOG: Evaluating")
         for batch in tqdm(dataloader):
             speaker_ids = batch.pop("utt_id")
-            batch = {
-                k: v.cuda()
-                for k, v in batch.items()
-            }
-            # print(batch)
+            batch = {k: v.cuda() for k, v in batch.items()}
             out = model(**batch, output_hidden_states=True)
-            hidden_states = out.hidden_states[-1].detach().cpu()
             all_logits.append(out.logits.detach().cpu())
             all_labels.append(batch["labels"].detach().cpu())
             all_speaker_ids += speaker_ids
-            if args.dump_hidden_states:
-                all_hidden_states += [
-                    hidden_states[i, ...] for i in range(hidden_states.size(0))
-                ]
+        
     return all_speaker_ids, all_logits, all_labels, all_hidden_states
 
 
@@ -318,45 +311,10 @@ def decode(logits, args):
     return predicted_str
 
 
-def dump_hidden_states(speaker_ids, hidden_states, args):
-    hidden_states_path = f"{args.predictions_folder}/{args.file_prefix}_states.p"
-
-    if args.dump_hidden_states:
-        with open(hidden_states_path, "wb") as fd:
-            dat = dict(zip(speaker_ids, hidden_states))
-            pickle.dump(dat, fd)
-
-
-def dump_logits(speaker_ids, logits, labels, args):
-    logits_path = f"{args.predictions_folder}/{args.file_prefix}_logits.p"
-
-    if args.dump_logits:
-        with open(logits_path, "wb") as fd:
-            pickle.dump((speaker_ids, logits, labels), fd)
-
-
-def dump_codevectors(codevectors, projected_codevectors, args):
-    codevectors_path = f"{SAVE_PATH}/codevectors/{args.model_name}_{args.dataset_name}_codevectors.pt"
-    projected_codevectors_path = (
-        f"{SAVE_PATH}/projected_codevectors/{args.model_name}_{args.dataset_name}_projected_codevectors.pt"
-    )
-
-    if args.dump_codevectors:
-        torch.save(codevectors,codevectors_path)
-        torch.save(projected_codevectors, projected_codevectors_path)
-
-
 def dump_text(speaker_ids, predicted_str, args):
     pred_str_path = f"{args.predictions_folder}/{args.model_name}/{args.dataset_name}_text.txt"
 
     write_silver_labels(pred_str_path, predicted_str, speaker_ids)
-
-
-def make_silver_labels(speaker_ids, logits, args):
-    predicted_str = decode(logits, args)
-
-    dump_text(speaker_ids, predicted_str, args)
-
 
 def evaluate(speaker_ids, logits, labels, args):
     predicted_str = decode(logits, args)
@@ -426,58 +384,30 @@ def main():
     args = parse_args()
     
     ## check if destination folder for predictions exists
-    # os.makedirs(args.predictions_folder,exist_ok=True)
     os.makedirs(f"{args.predictions_folder}/{args.model_name}/",exist_ok=True)
     
-    if args.cached_logits is not None and os.path.isfile(args.cached_logits):
-        with open(args.cached_logits, "rb") as fd:
-            speaker_ids, logits, labels = pickle.load(fd)
-    else:
-        dataset = make_dataset(args )
-        # dataset = dataset.select(range(10))
-        model = make_model(processor, args)
-        
-        ### FIXME If utt_id is required in results, fixe collator to maintain field in batch
-        data_collator = DataCollatorWithPadding(processor, model_config=model.config)
+    
+    dataset = make_dataset(args )
+    # dataset = dataset.select(range(10))
+    model = make_model(processor, args)
+    
+    ### FIXME If utt_id is required in results, fixe collator to maintain field in batch
+    data_collator = DataCollatorWithPadding(processor, model_config=model.config)
 
-        dataloader = DataLoader(
-            dataset, batch_size=args.batch_size, collate_fn=data_collator
+    dataloader = DataLoader(
+        dataset, batch_size=args.batch_size, collate_fn=data_collator
+    )
+    speaker_ids, logits, labels, hidden_states = evaluation_loop(
+            model, dataloader, args
         )
-        speaker_ids, logits, labels, hidden_states = evaluation_loop(
-                model, dataloader, args
+        
+    metrics = evaluate(speaker_ids, logits, labels, args)
+    print(metrics)
+    with open(f"{args.predictions_folder}/{args.model_name}/{args.dataset_name}_metrics.csv", "a") as fd:
+        lm_ = args.lm if args.lm is not None else "N/A"
+        fd.write(
+                f"{args.model_name}\t{args.model_checkpoint}\t{lm_}\t{metrics['wer']}\n"
             )
-        # dump_reference(dataloader=dataloader,args=args)
-        if args.dump_codevectors:
-            codevectors, projected_codevectors = get_codevectors(model, dataloader)
-            dump_codevectors(codevectors, projected_codevectors, args)
-            return
-        elif args.dump_conv:
-            conv_features = get_conv_features(model, dataloader)
-            dump_conv_features(conv_features, args)
-        else:
-            # speaker_ids, logits, labels, hidden_states = evaluation_loop(
-            #     model, dataloader, args
-            # )
-
-            if args.dump_logits:
-                dump_logits(speaker_ids, logits, labels, args)
-
-            if args.dump_hidden_states:
-                dump_hidden_states(speaker_ids, hidden_states, args)
-
-    if args.extract_silver_labels:
-        make_silver_labels(speaker_ids, logits, args)
-    else:
-        # speaker_ids, logits, labels, hidden_states = evaluation_loop(
-        #         model, dataloader, args
-        #     )
-        metrics = evaluate(speaker_ids, logits, labels, args)
-        print(metrics)
-        with open(f"{args.predictions_folder}/{args.model_name}/{args.dataset_name}_metrics.csv", "a") as fd:
-            lm_ = args.lm if args.lm is not None else "N/A"
-            fd.write(
-                    f"{args.model_name}\t{args.model_checkpoint}\t{lm_}\t{metrics['wer']}\n"
-                )
 
 
 if __name__ == "__main__":

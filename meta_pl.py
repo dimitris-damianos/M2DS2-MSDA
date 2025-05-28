@@ -323,10 +323,9 @@ def meta_pl_step(student, teacher, student_optim, teacher_optim, batch, processo
     elif batch["domain"][0]==0: ## source domain batch
         ## Only student's feedback for teacher
         teacher_loss = teacher_train_step(student=student,
-                           teacher=teacher,
                            optimizer=teacher_optim,
                            batch=batch,
-                           args=args)
+                           )
         
     return teacher_loss, student_loss
     
@@ -369,6 +368,9 @@ def run(args):
     os.makedirs(student_checkpoint,exist_ok=True)
     os.makedirs(teacher_checkpoint,exist_ok=True)
 
+    student.to(device)
+    teacher.to(device)
+    
     teacher.train()
     student.train()
     
@@ -400,22 +402,6 @@ def run(args):
             save_checkpoint(location=teacher_checkpoint,model=teacher,args=args)
             args.save_incr += 1
         args.iter_counter += 1
-
-        
-        # if epoch % args.eval_steps == 0:
-        #     eval_t_loss,  eval_s_loss = 0, 0
-        #     for batch in dev_loader:
-        #         # print(batch)
-        #         batch = batch.to(device)
-        #         with torch.no_grad():
-        #             t_loss, s_loss = meta_pl_step(
-        #                 student=student, teacher=teacher,
-        #                 student_optim=student_optim, teacher_optim=teacher_optim,
-        #                 batch=batch, processor=processor, args=args
-        #             )
-        #         eval_s_loss += s_loss
-        #         eval_t_loss += t_loss
-        #     logger.info(f"Validation, teacher loss: {epoch_t_loss}, student loss: {epoch_s_loss}")          
 
 def main():
     args = parse_args()

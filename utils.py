@@ -41,8 +41,8 @@ def make_parser(description="Experiment argument parser"):
     parser.add_argument("--source-domain", type=str, help="Source domain name")
     parser.add_argument("--target-domain", type=str, help="Target domain name")
     parser.add_argument("--processor-path", type=str, default="processor/", help="Path to saved processor")
-    parser.add_argument("--apply-spec-aug",type=bool, default=False,help="Whether or not to enable SpecAugment during finetuning.") 
-    parser.add_argument("--apply-spec-aug-student",type=bool, default=True,help="Whether or not to enable SpecAugment for student model.")  
+    parser.add_argument("--apply-spec-aug",action='store_true',help="Whether or not to enable SpecAugment during finetuning.") 
+    parser.add_argument("--apply-spec-aug-student",action='store_true',help="Whether or not to enable SpecAugment for student model.")  
     parser.add_argument("--path-to-pretrained",
                         type=str, 
                         default="facebook/wav2vec2-large-xlsr-53",

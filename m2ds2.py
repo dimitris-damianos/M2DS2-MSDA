@@ -20,9 +20,6 @@ warnings.filterwarnings("ignore")
 
 disable_caching()  # No need to consume disk space. data loading is pretty fast
 
-DATASET_LOC = "/nfs1/ddamianos/datafast"
-MSDA_SAVE_PATH = '/nfs1/ddamianos/msda'
-
 class M2DS2Trainer(Trainer):
     def __init__(
         self,
@@ -83,7 +80,6 @@ class M2DS2Trainer(Trainer):
                             pin_memory=self.args.dataloader_pin_memory,
                             worker_init_fn=seed_worker,
                         )
-        # print(next(iter(dataloader)))
         
         return dataloader
 
@@ -115,12 +111,6 @@ def make_dataset(args):
     print(f'LOG: Target data len: {len(dataset_target)}')
     dataset = concatenate_datasets([dataset_source,dataset_target ])  ## start from target
 
-    source_dev_dataset = Dataset.load_from_disk(f"{args.valid_dir}")
-    source_dev_dataset = source_dev_dataset.map(source_domain)
-    dev_dataset = source_dev_dataset
-    
-    test_dataset = Dataset.load_from_disk(f"{args.test_dir}")
-    test_dataset = test_dataset.map(eval_domain)
     print(f"LOG: Finetuning with mixed training on {args.src_name} source domain, {args.trg_name} target domain.")
 
     s_dataset_size = len(dataset_source)
@@ -136,7 +126,10 @@ def make_dataset(args):
         args.batch_size,
         args.batch_size*2,
     )
-    return dataset, dev_dataset, test_dataset, train_sampler
+    
+    print(dataset[0].keys())
+    
+    return dataset, train_sampler
 
 
 def make_model(processor, args):
@@ -156,14 +149,14 @@ def make_model(processor, args):
 def make_training_args(args):
     training_args = TrainingArguments(
         # output_dir="/content/gdrive/MyDrive/wav2vec2-large-xlsr-turkish-demo",
-        logging_dir=f"{MSDA_SAVE_PATH}/m2ds2-log/src_{args.src_name}_trg_{args.trg_name}",
+        logging_dir=f"./m2ds2-log/src_{args.src_name}_trg_{args.trg_name}",
         log_level='info',
-        output_dir=f"{MSDA_SAVE_PATH}/m2ds2-checkpoints/src_{args.src_name}_trg_{args.trg_name}",       ## save teachers 
+        output_dir=f"{args.save_dir}/m2ds2-checkpoints/src_{args.src_name}_trg_{args.trg_name}",       ## save teachers 
         group_by_length=True,
         per_device_train_batch_size=args.batch_size,
         disable_tqdm=args.disable_tqdm,
         gradient_accumulation_steps=4,
-        evaluation_strategy="epoch",
+        # evaluation_strategy="epoch",
         num_train_epochs=args.epochs,
         #max_steps=args.max_steps,
         fp16=True,
@@ -198,16 +191,6 @@ def parse_args():
         help='Path to the target train dataset directory.'
     )
     parser.add_argument(
-        '--valid-dir',
-        type=str,
-        help='Path to the validation dataset directory.'
-    )
-    parser.add_argument(
-        '--test-dir',
-        type=str,
-        help='Path to the test dataset directory.'
-    )
-    parser.add_argument(
         '--src-name',
         type=str,
         help='Name of source domain.'
@@ -229,6 +212,11 @@ def parse_args():
         default=0.01,
         help='Beta weight parameter'
     )
+    parser.add_argument(
+        '--save-dir',
+        type=str,
+        help='Path to save the model checkpoints.'
+    )
     return parser.parse_args()
 
 
@@ -242,7 +230,7 @@ def main():
 
     compute_metrics = make_metrics_calculator(wer_metric, processor)
 
-    train_dataset, dev_dataset, test_dataset, train_sampler = make_dataset(args)
+    train_dataset, train_sampler = make_dataset(args)
     
     model = make_model(processor, args)
     pre_collator = PretrainCollator(
@@ -257,25 +245,16 @@ def main():
     training_args = make_training_args(args)
     trainer = M2DS2Trainer(
         model=model,
-        data_collator=data_collator,
+        data_collator=mixed_collator,
         args=training_args,
         compute_metrics=compute_metrics,
         train_dataset=train_dataset,
-        eval_dataset=dev_dataset,
         tokenizer=processor.tokenizer,
         train_sampler=train_sampler,
     )
 
-    # loader = trainer.get_train_dataloader()
-    # for batch in loader:
-    #     print(batch['domain'])
-    
-    # return
     trainer.train(resume_from_checkpoint=args.resume is not None)
 
-    metrics = trainer.evaluate(eval_dataset=test_dataset)
-
-    print(f"Test metrics {metrics}")
 
 
 if __name__ == "__main__":

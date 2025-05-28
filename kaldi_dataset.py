@@ -165,7 +165,6 @@ def preprocess(
             batch["labels"] = processor(batch["sentence"]).input_ids
         return batch
 
-    # dataset = dataset.map(data_preparation, remove_columns=["audio"], num_proc=1)
     dataset = dataset.map(data_preparation, remove_columns=["audio"])
     return dataset, processor
 
