@@ -1,9 +1,9 @@
 # Self & Semi-supervised Speech Domain Adaptation (MSDA, M2DS2)
 This repository contains the official implementations of the following 2 papers: 
 
-- [Sample-Efficient Unsupervised Domain Adaptation of Speech Recognition Systems A case study for Modern Greek](https://arxiv.org/abs/2301.00304)
+- [Sample-Efficient Unsupervised Domain Adaptation of Speech Recognition Systems A case study for Modern Greek](https://arxiv.org/abs/2301.00304) (IEEE/ACM Transactions on Audio, Speech, and Language Processing 2022)
 
-- [MSDA: Combining Pseudo-labeling and Self-Supervision for Unsupervised Domain Adaptation in ASR](https://arxiv.org/abs/2505.24656)
+- [MSDA: Combining Pseudo-labeling and Self-Supervision for Unsupervised Domain Adaptation in ASR](https://arxiv.org/abs/2505.24656) (Interspeech 2025)
 
 We provide all necessary steps for setting up the environment, preparing data, and running training pipelines for both Mixed Multi-Domain
 Self-Supervision (M2DS2) and Multi Stage Domain Adaptation (MSDA). 
@@ -50,7 +50,7 @@ python train.py \
 ## M2DS2: Mixed Multi-Domain Self-Supervision
 To train a model using the M2DS2 approach, run:
 ```bash
-python ./m2ds2.py \
+python m2ds2.py \
       --path-to-pretrained facebook/wav2vec2-large-xlsr-53 \
       --src-train-dir /path/to/source \
       --trg-train-dir /path/to/target \
@@ -70,7 +70,7 @@ You can choose between two student training strategies:
 ### Meta Pseudo Labels (Meta PL)
 This approach applies the [Meta Pseudo Labels](https://arxiv.org/abs/2003.10580) method to train a student model with teacher guidance:
 ```bash
-python ./meta_pl.py \
+python meta_pl.py \
     --src-train-dir path/to/source/dataset/ \
     --trg-train-dir path/to/target/dataset/ \
     --src-name  /source/name \                      # For logging and results
@@ -108,7 +108,7 @@ python msda.py \
     --exp-save-path /path/to/save \
     --disable-tqdm
 ```
-💡 Both meta_pl.py and msda.py save student and teacher models during training for future use or evaluation.
+💡 Both `meta_pl.py` and `msda.py` save student and teacher models during training for future use or evaluation.
 ## Evaluation
 To evaluate any trained model (fine-tuned, M2DS2, Meta-PL, MSDA):
 ```bash
@@ -122,15 +122,33 @@ python decode.py \
     --is-metapl   # Required for Meta-PL or MSDA checkpoints
 ```
 ## Citation
-If you use this codebase, please consider citing the corresponding papers:
+If you find this codebase useful in your work, please consider citing the following papers:
 
-For M2DS2
+### M2DS2
 ```bibtex
+@article{paraskevopoulos2023sample,
+  title={Sample-Efficient Unsupervised Domain Adaptation of Speech Recognition Systems: A Case Study for Modern Greek},
+  author={Paraskevopoulos et al., Georgios},
+  journal={IEEE/ACM Transactions on Audio, Speech, and Language Processing},
+  year={2024},
+  volume={32},
+  number={},
+  pages={286-299},
+  publisher={IEEE}
+}
 ```
-For MSDA
+### MSDA
 ```bibtex
+@article{damianos2025msda,
+  title={MSDA: Combining Pseudo-labeling and Self-Supervision for Unsupervised Domain Adaptation in ASR},
+  author={Damianos, Dimitrios and Paraskevopoulos, Georgios and Potamianos, Alexandros},
+  journal={arXiv preprint arXiv:2505.24656},
+  year={2025}
+}
 ```
 
 
 ## Contact
-- d.damianos@athena.rc
+For questions or collaborations, feel free to reach out:
+- d.damianos@athenarc.gr
+- g.paraskevopoulos@athenarc.gr
