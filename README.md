@@ -1,7 +1,7 @@
 # Self & Semi-supervised Speech Domain Adaptation (MSDA, M2DS2)
 This repository contains the official implementations of the following 2 papers: 
 
-- [Sample-Efficient Unsupervised Domain Adaptation of Speech Recognition Systems A case study for Modern Greek](https://arxiv.org/abs/2301.00304) (IEEE/ACM Transactions on Audio, Speech, and Language Processing 2022)
+- [Sample-Efficient Unsupervised Domain Adaptation of Speech Recognition Systems A case study for Modern Greek](https://arxiv.org/abs/2301.00304) (IEEE/ACM Transactions on Audio, Speech, and Language Processing 2024)
 
 - [MSDA: Combining Pseudo-labeling and Self-Supervision for Unsupervised Domain Adaptation in ASR](https://arxiv.org/abs/2505.24656) (Interspeech 2025)
 
